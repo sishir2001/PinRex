@@ -6,7 +6,7 @@ This command line tool takes in a list of pincodes and generates a regular expre
 
 1. Clone the repository:
     
-        git clone <repository_url>
+        git clone https://github.com/sishir2001/PinRex
 
 2. Navigate to the project directory:
 
