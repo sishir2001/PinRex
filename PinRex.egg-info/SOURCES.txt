@@ -1,0 +1,7 @@
+README.md
+setup.py
+PinRex.egg-info/PKG-INFO
+PinRex.egg-info/SOURCES.txt
+PinRex.egg-info/dependency_links.txt
+PinRex.egg-info/requires.txt
+PinRex.egg-info/top_level.txt

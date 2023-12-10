@@ -25,7 +25,7 @@ This command line tool takes in a list of pincodes and generates a regular expre
 
 To generate a regex based on a list of pincodes, run the following command:
 
-    python main.py -i <input_file_path>.csv -o <output_file_path>.csv
+    python ./src/main.py -i <input_file_path>.csv -o <output_file_path>.csv
 
 - `-i` or `--input` options for specifying the path of input csv file
 - `-o` or `--output` options for specifying the path of output csv file
