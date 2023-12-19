@@ -5,8 +5,8 @@ module Utils
         arrayIsEmpty
     ) where
 
-import Data.Char (digitToInt)
-import Data.Array ( bounds, Array )
+import           Data.Array (Array, bounds)
+import           Data.Char  (digitToInt)
 
 intToList :: Int -> [Int]
 intToList = map digitToInt . show
