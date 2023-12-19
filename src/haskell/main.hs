@@ -2,15 +2,15 @@
 
 module Main where
 
-import Data.Array (Array, array, elems, (!), (//))
-import Data.List (foldl', intercalate,groupBy,sortBy)
-import Data.Function (on)
-import qualified Data.Map as Map
-import Data.Maybe (isJust, isNothing)
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import           Data.Array     (Array, array, elems, (!), (//))
+import           Data.Function  (on)
+import           Data.List      (foldl', groupBy, intercalate, sortBy)
+import qualified Data.Map       as Map
+import           Data.Maybe     (isJust, isNothing)
+import qualified Data.Text      as T
+import qualified Data.Text.IO   as TIO
 import qualified Data.Text.Read as TR
-import Utils (arrayIsEmpty, intToList, mapWithIndex)
+import           Utils          (arrayIsEmpty, intToList, mapWithIndex)
 
 data Node = Node {height :: Int, children :: Array Int (Maybe Node), childrenCount :: Int}
 
@@ -45,7 +45,7 @@ buildTrieFromPin (digit : digits) currNode@Node {height = h, children = children
     mChildNode = children ! digit
     resChildCount = if isNothing mChildNode then childrenCount + 1 else childrenCount
     newNode = case mChildNode of
-      Nothing -> initNode (h + 1)
+      Nothing        -> initNode (h + 1)
       Just childNode -> childNode
 
 buildTrie :: [Int] -> Node -> Node
@@ -87,7 +87,7 @@ regexFromTrie index Node {height = h, children = children, childrenCount = child
     isNoChild = childrenCount == 0
     regexList = mapWithIndex (flip helperDFS) (elems children) -- bfs is done using map
     helperDFS mNode i = case mNode of -- dfs is done using helperDFS
-      Nothing -> ""
+      Nothing        -> ""
       Just childNode -> regexFromTrie i childNode
 
 pincodeListToRegex :: [Int] -> T.Text
@@ -156,5 +156,5 @@ main = do
 
 -- END: read the input/output csv from arguments
 
--- TODO : test whether trie is formed right -- I think its working fine 
+-- TODO : test whether trie is formed right -- I think its working fine
 -- TODO : test function that generated regex from trie is right
