@@ -19,7 +19,7 @@ This command line tool takes in a list of pincodes and generates a regular expre
 
 4. Install the dependencies:
 
-        pip install requirements.txt
+        pip install -r requirements.txt
 
 ## Usage
 
