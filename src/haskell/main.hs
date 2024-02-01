@@ -139,4 +139,3 @@ main = do
   print statePincodeDic
   print statePincodeRegexDic
 -- END: read the input/output csv from arguments
-
