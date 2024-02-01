@@ -2,12 +2,12 @@
 
 module Main where
 
-import Data.List (foldl', intercalate)
-import qualified Data.Map as Map
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import           Data.List      (foldl', intercalate)
+import qualified Data.Map       as Map
+import qualified Data.Text      as T
+import qualified Data.Text.IO   as TIO
 import qualified Data.Text.Read as TR
-import Utils (intToList,digitCharToInt)
+import           Utils          (digitCharToInt, intToList)
 
 data Tree = EmptyTree | Node {height :: Int, childCount :: Int,children :: [Tree] } deriving (Show)
 
@@ -29,15 +29,15 @@ initNode h = Node {
 
 -- START : Build a Tree from a list of pincodes
 updateChildNodes :: [Tree] -> Int -> Tree -> [Tree]
-updateChildNodes childNodes index childNode = 
+updateChildNodes childNodes index childNode =
     let (before, _:after) = splitAt index childNodes
     in before ++ [childNode] ++ after
 
 buildTreeFromPincode :: Tree -> Pincode -> Tree
 buildTreeFromPincode rootNode [] = rootNode
-buildTreeFromPincode currNode@Node{height=h, children=children, childCount=childCount} (x:xs) = 
+buildTreeFromPincode currNode@Node{height=h, children=children, childCount=childCount} (x:xs) =
     let (newChildNode,newChildCount) = case childNode of
-            EmptyTree -> (buildTreeFromPincode (initNode (h+1)) xs,childCount + 1) 
+            EmptyTree -> (buildTreeFromPincode (initNode (h+1)) xs,childCount + 1)
             childNode' -> (buildTreeFromPincode childNode' xs,childCount)
         newChildren = updateChildNodes children x newChildNode
     in currNode {children = newChildren, childCount = newChildCount}
@@ -46,12 +46,12 @@ buildTreeFromPincode currNode@Node{height=h, children=children, childCount=child
 
 buildTreeFromPincodeList :: Tree -> [Pincode] -> Tree
 buildTreeFromPincodeList rootNode [] = rootNode
-buildTreeFromPincodeList EmptyTree (x:xs) = 
+buildTreeFromPincodeList EmptyTree (x:xs) =
     let rootNode' = buildTreeFromPincode rootNode x
     in  buildTreeFromPincodeList rootNode' xs
     where
         rootNode = initNode 0
-buildTreeFromPincodeList rootNode (x:xs) = 
+buildTreeFromPincodeList rootNode (x:xs) =
     let rootNode' = buildTreeFromPincode rootNode x
     in buildTreeFromPincodeList rootNode' xs
 
@@ -60,25 +60,25 @@ buildTreeFromPincodeList rootNode (x:xs) =
 -- START : Build a Regex from a Tree
 regexFromPincodesTree :: Tree -> String
 regexFromPincodesTree EmptyTree = ""
-regexFromPincodesTree Node {height=height, children=children, childCount=childrenCount} 
+regexFromPincodesTree Node {height=height, children=children, childCount=childrenCount}
     | childrenCount == 0 = ""
-    | otherwise = 
+    | otherwise =
         let childRegexes = map regexFromChild [0..9]
             result = truncateRegexesList childRegexes height
         in result
     where
         regexFromChild :: Int -> String
-        regexFromChild i = 
+        regexFromChild i =
             case children !! i of
                 EmptyTree -> ""
-                child -> 
+                child ->
                     let childRegex = regexFromPincodesTree child
                     in if height == 0 then "^" ++ show i ++ childRegex
                         else show i ++ childRegex
 
 truncateRegexesList :: [String] -> Int -> String
 truncateRegexesList [] _ = ""
-truncateRegexesList childRegexes height 
+truncateRegexesList childRegexes height
     | null filteredChildRegexes = ""
     | length filteredChildRegexes == 1 = head filteredChildRegexes
     | height == 5 = "[" ++ concat filteredChildRegexes ++ "]"
@@ -89,7 +89,7 @@ truncateRegexesList childRegexes height
         concatStrings = concat
 
 pincodeListToRegex :: PincodeList -> T.Text
-pincodeListToRegex pincodes = 
+pincodeListToRegex pincodes =
     T.pack $ regexFromPincodesTree tree
     where
         parsedPincodes = map intToList pincodes

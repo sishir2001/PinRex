@@ -4,7 +4,7 @@ module Utils
         digitCharToInt
     ) where
 
-import Data.Char (digitToInt,ord)
+import           Data.Char (digitToInt, ord)
 
 intToList :: Int -> [Int]
 intToList = map digitToInt . show
