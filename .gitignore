@@ -1,3 +1,6 @@
 pinrex
 *.DS_Store
 *.csv
+*.hi
+*.o
+*.o
