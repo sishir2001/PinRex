@@ -14,6 +14,7 @@
 using namespace std;
 using json = nlohmann::json;
 
+const string APP_VERSION = "1.1.1";
 const string JSON_EXTENSION = ".json";
 const size_t JSON_EXTENSION_LENGTH = JSON_EXTENSION.length();
 const string ANY_DIGIT_REGEX = "[0-9]";
@@ -185,16 +186,34 @@ bool isJsonFile(const string& filePath){
     }
 }
 
+json createJSONRegex(const string& regex){
+    json result;
+    result["regex"] = regex;
+    return result;
+}
+
 int main(int argc, char* argv[]) {
-    if( argc != 4){
-        cerr << "Usage: " << argv[0] << " <input-file-path>.json <output-file-path> <regex-limit>" << "\n";
-        return 1;
-    }
-    string inputFilePath = argv[1];
-    string outputFilePath = argv[2];
+    string inputFilePath, outputFilePath;
     int regexLengthLimit = 0;
+
+    // Argument parsing
     try{
-        regexLengthLimit = stoi(argv[3]);
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if (arg == "--version") {
+            cout << "PinRex Version " << APP_VERSION << endl;
+            return 0;
+        } else if (arg == "-i" && i + 1 < argc) {
+            inputFilePath = argv[++i];
+        } else if (arg == "-o" && i + 1 < argc) {
+            outputFilePath = argv[++i];
+        } else if (arg == "-l" && i + 1 < argc) {
+            regexLengthLimit = stoi(argv[++i]);
+        } else {
+            cerr << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
+            return 1;
+        }
+    }
     }
     catch(const exception& e){
         cerr << "Error occurred :.\n" << e.what() << "\n";
@@ -227,14 +246,20 @@ int main(int argc, char* argv[]) {
         postalCodes.push_back(to_string(code.get<int>()));
     }
 
-    // Output the postal codes to verify
-    for (const auto& code : postalCodes) {
-        cout << "Postal Code: " << code << '\n';
-    }
-
     Node* root = buildTreeFromPostalCodes(postalCodes);
     string regex = buildRegexFromTree(root);
-    cout << "Regex: " << regex << "\n";
 
+    // write the regex to the output file
+    ofstream outputFile(outputFilePath);
+    json result = createJSONRegex(regex);
+    if(outputFile.is_open()){
+        outputFile << result.dump(4);
+        outputFile.close();
+        cout << "Regex saved to " << outputFilePath << endl;
+    }
+    else{
+        cerr << "Error: Unable to open output file for writing." << endl;
+        return 1;
+    }
     return 0;
 }
