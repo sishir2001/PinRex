@@ -10,6 +10,8 @@
 
    add_executable(pinrex src/main.cpp)
 
-   # Find the json package and link it
-   find_package(nlohmann_json REQUIRED)
-   target_link_libraries(pinrex nlohmann_json::nlohmann_json)
+   # Link the json library to your executable
+   target_link_libraries(pinrex PRIVATE nlohmann_json::nlohmann_json)
+
+   # Specify the installation rules
+   install(TARGETS pinrex DESTINATION bin)  # This line installs the executable to the bin directory
