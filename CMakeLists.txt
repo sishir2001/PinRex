@@ -4,18 +4,12 @@
    set(CMAKE_CXX_STANDARD 17)
    set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+   # Include the generated files for the dependencies
+   include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
    include_directories(include)
-
-   # Fetch nlohmann/json from its Github repository
-   include(FetchContent)
-   FetchContent_Declare(
-      json
-      GIT_REPOSITORY https://github.com/nlohmann/json.git
-      # GIT_TAG 3.11.0
-   )
-   FetchContent_MakeAvailable(json)
 
    add_executable(pinrex src/main.cpp)
 
-   # Link the json library to your executable
-   target_link_libraries(pinrex PRIVATE nlohmann_json::nlohmann_json)
+   # Find the json package and link it
+   find_package(nlohmann_json REQUIRED)
+   target_link_libraries(pinrex nlohmann_json::nlohmann_json)
