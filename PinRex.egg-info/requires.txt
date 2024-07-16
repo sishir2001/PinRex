@@ -1,9 +1,0 @@
-numpy
-pandas
-python-dateutil
-pytz
-setuptools
-siz
-tzdata
-wheel
-pip

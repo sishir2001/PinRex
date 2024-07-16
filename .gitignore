@@ -4,4 +4,4 @@ pinrex
 *.hi
 *.o
 *.o
-*/build
+*build/
