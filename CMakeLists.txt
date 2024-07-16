@@ -19,3 +19,6 @@
 
    # Link the json library to your executable
    target_link_libraries(pinrex PRIVATE nlohmann_json::nlohmann_json)
+
+   # Specify the installation rules
+   install(TARGETS pinrex DESTINATION bin)  # This line installs the executable to the bin directory
