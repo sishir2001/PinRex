@@ -12,11 +12,13 @@
 #include <utility>
 #include <set>
 #include <regex>
+#include "utils.hpp"
 
 using namespace std;
 using json = nlohmann::json;
+using namespace pinrex;
 
-const string APP_VERSION = "1.2.0";
+const string APP_VERSION = "1.2.2";
 const string JSON_EXTENSION = ".json";
 const size_t JSON_EXTENSION_LENGTH = JSON_EXTENSION.length();
 const string ANY_DIGIT_REGEX = "[0-9]";
@@ -43,32 +45,43 @@ class Node{
 
 // build a tree from a list of postal codes
 Node* buildTreeFromPostalCodes(const vector<string>& postalCodes){
+    Logger::log("Starting tree construction from postal codes", "buildTreeFromPostalCodes", LogLevel::DEBUG);
     Node* root = new Node(0);
-    for(const auto& postalCode : postalCodes){
-        Node* currentNode = root;
-        for(const char& digit : postalCode){
-            int index = digit - '0';
-            if(index >= 0 && index < 10){
-                if(!currentNode->children[index]){
-                    Node* child = new Node(currentNode->height + 1);
-                    currentNode->addChild(index, unique_ptr<Node>(child));
-                    currentNode = child;
-                }
-                else{
-                    currentNode = currentNode->children[index].get();
+    ProgressBar progress(postalCodes.size());
+    
+    for(size_t i = 0; i < postalCodes.size(); ++i) {
+        const auto& postalCode = postalCodes[i];
+        try {
+            Node* currentNode = root;
+            for(const char& digit : postalCode) {
+                int index = digit - '0';
+                if(index >= 0 && index < 10) {
+                    if(!currentNode->children[index]) {
+                        Node* child = new Node(currentNode->height + 1);
+                        currentNode->addChild(index, unique_ptr<Node>(child));
+                        currentNode = child;
+                    } else {
+                        currentNode = currentNode->children[index].get();
+                    }
+                } else {
+                    string error = "Invalid postal code digit: " + string(1,digit);
+                    Logger::log(error, "buildTreeFromPostalCodes", LogLevel::ERROR);
+                    throw runtime_error(error);
                 }
             }
-            else{
-                throw runtime_error("Invalid postal code digit: " + string(1,digit));
-            }
+        } catch (const exception& e) {
+            Logger::log("Error processing postal code: " + postalCode + " - " + e.what(), "buildTreeFromPostalCodes", LogLevel::ERROR);
+            throw;
         }
-        currentNode = nullptr;
-        delete currentNode;
+        progress.update(i + 1);
     }
+    progress.finish();
+    Logger::log("Tree construction completed successfully", "buildTreeFromPostalCodes", LogLevel::DEBUG);
     return root;
 }
 
 vector<string> getMissingDigits(const vector<string>& vec) {
+    Logger::log("Calculating missing digits", "getMissingDigits", LogLevel::DEBUG);
     vector<string> result;
     bool digitsPresent[10] = {false}; // Array to track presence of digits 0-9
 
@@ -91,6 +104,7 @@ vector<string> getMissingDigits(const vector<string>& vec) {
 
 
 bool areElementsContinuous(const vector<string>& vec) {
+    Logger::log("Checking if elements are continuous", "areElementsContinuous", LogLevel::DEBUG);
     if (vec.size() < 2) return true; // A single element or empty vector is trivially continuous
 
     try {
@@ -115,6 +129,7 @@ bool areElementsContinuous(const vector<string>& vec) {
 }
 
 string truncateRegexForLeafNodes(const vector<string>& leafRegexes){
+    Logger::log("Truncating regex for leaf nodes", "truncateRegexForLeafNodes", LogLevel::DEBUG);
     const size_t leafRegexesSize = leafRegexes.size();
     if(leafRegexesSize == 10){
         return ANY_DIGIT_REGEX;
@@ -225,6 +240,7 @@ vector<string> groupAndTruncateRegexes(vector<string>& regexes,int height,int li
 // parse the tree to build a regex
 // should return an array of regexes
 vector<string> buildRegexFromTree(Node* root,int limit){
+    Logger::log("Building regex patterns from tree with limit: " + to_string(limit), "buildRegexFromTree", LogLevel::INFO);
     vector<string> result;
     if(root->childCount == 0){
         return {};
@@ -254,12 +270,15 @@ vector<string> buildRegexFromTree(Node* root,int limit){
         }
     }
     // need to trucate the regex
-    return groupAndTruncateRegexes(result,root->height,limit);
+    vector<string> groupedRegexes = groupAndTruncateRegexes(result,root->height,limit);
+    Logger::log("Completed building regex patterns", "buildRegexFromTree", LogLevel::INFO);
+    return groupedRegexes;
 }
 
 
 // check if the file is a json file by checking the extension
 bool isJsonFile(const string& filePath){
+    Logger::log("Checking if file is JSON: " + filePath, "isJsonFile", LogLevel::DEBUG);
     const size_t filePathLength = filePath.length();
     if(filePathLength >= JSON_EXTENSION_LENGTH){
         return (0 == filePath.compare(filePathLength - JSON_EXTENSION_LENGTH, JSON_EXTENSION_LENGTH, JSON_EXTENSION));
@@ -276,31 +295,31 @@ json createJSONRegex(const vector<string>& regexes){
 }
 
 bool validateRegexMatches(const vector<string>& regexes, const vector<int>& postalCodes) {
+    LOG("Starting regex validation", LogLevel::INFO);
     try {
-        // Create set of valid postal codes
         set<int> validPostalCodes(postalCodes.begin(), postalCodes.end());
+        LOG("Total valid postal codes: " + to_string(validPostalCodes.size()), LogLevel::DEBUG);
 
-        // Convert regex strings to regex objects
         vector<regex> regexObjects;
         for (const auto& pattern : regexes) {
             try {
                 regexObjects.push_back(regex(pattern));
             } catch (const regex_error& e) {
-                cerr << "Invalid regex pattern: " << pattern << "\nError: " << e.what() << endl;
+                LOG("Invalid regex pattern: " + pattern + " Error: " + e.what(), LogLevel::ERROR);
                 return false;
             }
         }
 
-        // Track invalid matches
         set<int> invalidMatches;
         size_t totalMatches = 0;
-
-        // Test each number from 100000 to 999999
+        
+        LOG("Starting validation of numbers from 100000 to 999999", LogLevel::INFO);
+        ProgressBar progress(899999);
+        
         for (int num = 100000; num <= 999999; num++) {
             const string numStr = to_string(num);
             bool matchesRegex = false;
 
-            // Check if number matches any regex
             for (const auto& regex : regexObjects) {
                 try {
                     if (regex_match(numStr, regex)) {
@@ -308,7 +327,7 @@ bool validateRegexMatches(const vector<string>& regexes, const vector<int>& post
                         break;
                     }
                 } catch (const regex_error& e) {
-                    continue; // Skip problematic regex
+                    continue;
                 }
             }
 
@@ -318,30 +337,28 @@ bool validateRegexMatches(const vector<string>& regexes, const vector<int>& post
                     invalidMatches.insert(num);
                 }
             }
+            progress.update(num - 100000);
         }
+        progress.finish();
 
-        // Output results
+        LOG("Validation complete. Total matches: " + to_string(totalMatches), LogLevel::INFO);
+        LOG("Invalid matches: " + to_string(invalidMatches.size()), LogLevel::INFO);
+
         if (!invalidMatches.empty()) {
-            cout << "Found numbers that match regex but aren't in postal codes:\n";
+            string invalidSamples;
             int count = 0;
             for (int num : invalidMatches) {
                 if (count++ < 10) {
-                    cout << num << " ";
+                    invalidSamples += to_string(num) + " ";
                 }
             }
-            cout << "\nTotal invalid matches: " << invalidMatches.size() << endl;
-            cout << "Total matches: " << totalMatches << endl;
-            cout << "Valid postal codes: " << validPostalCodes.size() << endl;
+            LOG("Sample invalid matches: " + invalidSamples, LogLevel::WARNING);
             return false;
-        } else {
-            cout << "All regex matches are valid postal codes!" << endl;
-            cout << "Total matches: " << totalMatches << endl;
-            cout << "Valid postal codes: " << validPostalCodes.size() << endl;
-            return totalMatches == validPostalCodes.size(); // Ensure we match all postal codes
         }
 
+        return totalMatches == validPostalCodes.size();
     } catch (const exception& e) {
-        cerr << "Error during validation: " << e.what() << endl;
+        LOG("Validation error: " + string(e.what()), LogLevel::ERROR);
         return false;
     }
 }
@@ -354,104 +371,138 @@ int main(int argc, char* argv[]) {
     string inputFilePath, outputFilePath;
     int regexLengthLimit = 1000;
     bool verifyMode = false;
+    bool verboseMode = false;
+
+    // Initialize logger
+    Logger::init("pinrex.log");
 
     // Argument parsing
-    try{
-    for (int i = 1; i < argc; ++i) {
-        string arg = argv[i];
-        if (arg == "--version") {
-            cout << "PinRex Version " << APP_VERSION << endl;
-            return 0;
-        } else if (arg == "--help" || arg == "-h") {
-            cout << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
-            cout << "Options:" << "\n";
-            cout << "  -i, --input <input-file-path>    Path to the input JSON file containing postal codes" << "\n";
-            cout << "  -o, --output <output-file-path>  Path to the output JSON file for generated regex patterns" << "\n";
-            cout << "  -l, --limit <regex-limit>        Maximum length of generated regex patterns (default: 1000)" << "\n";
-            cout << "  --verify                        Verify generated regex patterns against input postal codes" << "\n";
-            cout << "  --version                       Display the version of PinRex" << "\n";
-            cout << "  --help                          Display this help message" << "\n";
-            return 0;
-        } else if (arg == "-i" && i + 1 < argc) {
-            inputFilePath = argv[++i];
-        } else if (arg == "-o" && i + 1 < argc) {
-            outputFilePath = argv[++i];
-        } else if (arg == "-l" && i + 1 < argc) {
-            regexLengthLimit = stoi(argv[++i]);
-        } else if (arg == "--verify") {
-            verifyMode = true;
-        } else {
-            cerr << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
+    try {
+        LOG("Parsing command line arguments", LogLevel::DEBUG);
+        for (int i = 1; i < argc; ++i) {
+            string arg = argv[i];
+            if (arg == "--version") {
+                LOG("Version request received", LogLevel::DEBUG);
+                cout << "PinRex Version " << APP_VERSION << endl;
+                return 0;
+            } else if (arg == "--help" || arg == "-h") {
+                LOG("Help request received", LogLevel::DEBUG);
+                cout << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
+                cout << "Options:" << "\n";
+                cout << "  -i, --input <input-file-path>    Path to the input JSON file containing postal codes" << "\n";
+                cout << "  -o, --output <output-file-path>  Path to the output JSON file for generated regex patterns" << "\n";
+                cout << "  -l, --limit <regex-limit>        Maximum length of generated regex patterns (default: 1000)" << "\n";
+                cout << "  --verify                        Verify generated regex patterns against input postal codes" << "\n";
+                cout << "  --verbose                       Enable verbose output" << "\n";
+                cout << "  --version                       Display the version of PinRex" << "\n";
+                cout << "  --help                          Display this help message" << "\n";
+                return 0;
+            } else if (arg == "-i" && i + 1 < argc) {
+                inputFilePath = argv[++i];
+                LOG("Input file set to: " + inputFilePath, LogLevel::DEBUG);
+            } else if (arg == "-o" && i + 1 < argc) {
+                outputFilePath = argv[++i];
+                LOG("Output file set to: " + outputFilePath, LogLevel::DEBUG);
+            } else if (arg == "-l" && i + 1 < argc) {
+                regexLengthLimit = stoi(argv[++i]);
+                LOG("Regex length limit set to: " + to_string(regexLengthLimit), LogLevel::DEBUG);
+            } else if (arg == "--verify") {
+                verifyMode = true;
+                LOG("Verify mode enabled", LogLevel::DEBUG);
+            } else if (arg == "--verbose") {
+                verboseMode = true;
+                LOG("Verbose mode enabled", LogLevel::DEBUG);
+            } else {
+                LOG("Invalid argument: " + arg, LogLevel::ERROR);
+                cerr << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
                 return 1;
             }
         }
-    }
-    catch(const exception& e){
-        cerr << "Error occurred :.\n" << e.what() << "\n";
-        return 1;
-    }
 
-    // read the input json file 
-    ifstream inputFile(inputFilePath);
-
-    if(!isJsonFile(inputFilePath)){
-        cerr << "Error: Invalid input file format. It must be a JSON file." << "\n";
-        return 1;
-    }
-
-    if(!inputFile.is_open()){
-        cerr << "Error: Failed to open input file." << "\n";
-        return 1;
-    }
-
-    json postalCodesJson = json::parse(inputFile);
-    // validate the JSON structure
-    if(!postalCodesJson.is_object() || !postalCodesJson.contains("postalCodes") || !postalCodesJson["postalCodes"].is_array()){
-        cerr << "Error: Invalid JSON structure. It must be an object with a postalCodes array." << "\n";
-        return 1;
-    }
-
-    // Extract postalCodes as an array of strings
-    vector<string> postalCodes;
-    for (const auto& code : postalCodesJson["postalCodes"]) {
-        postalCodes.push_back(to_string(code.get<int>()));
-    }
-
-    if (verifyMode) {
-        cout << "Verifying regexes..." << endl;
-        try {
-            // read the output json file
-            ifstream outputFile(outputFilePath);
-            if (!outputFile.is_open()) {
-                cerr << "Error: Failed to open output file." << "\n";
-                return 1;
-            }
-            json outputJson = json::parse(outputFile);
-            vector<string> regexes = outputJson["regexes"];
-            bool isValid = validateRegexMatches(regexes, postalCodesJson["postalCodes"]);
-            cout << "Regexes are valid: " << isValid << endl;
-            return isValid ? 0 : 1;
+        // Set verbose mode after parsing arguments
+        Logger::setVerbose(verboseMode);
+        
+        if (verboseMode) {
+            LOG("Starting PinRex v" + APP_VERSION, LogLevel::INFO);
         }
-        catch (const exception& e) {
-            cerr << "Error occurred :.\n" << e.what() << "\n";
+
+        // Input file validation and reading
+        LOG("Validating input file: " + inputFilePath, LogLevel::INFO);
+        if(!isJsonFile(inputFilePath)) {
+            LOG("Invalid input file format", LogLevel::ERROR);
             return 1;
         }
-    }
 
-    cout << "Building regex from list with limit " << regexLengthLimit << "..." << endl;
-    Node* root = buildTreeFromPostalCodes(postalCodes);
-    vector<string> regexes = buildRegexFromTree(root,regexLengthLimit);
-    cout << "Regexes built successfully. Writing to output file..." << endl;
-    ofstream outputFile(outputFilePath);
-    json result = createJSONRegex(regexes);
-    if(outputFile.is_open()){
-        outputFile << result.dump(4);
-        outputFile.close();
-        cout << "Regex saved to " << outputFilePath << endl;
-    }
-    else{
-        cerr << "Error: Unable to open output file for writing." << endl;
+        ifstream inputFile(inputFilePath);
+        if(!inputFile.is_open()) {
+            LOG("Failed to open input file: " + inputFilePath, LogLevel::ERROR);
+            return 1;
+        }
+
+        // Parse JSON
+        try {
+            LOG("Parsing input JSON file", LogLevel::INFO);
+            json postalCodesJson = json::parse(inputFile);
+            
+            if(!postalCodesJson.is_object() || !postalCodesJson.contains("postalCodes") || 
+               !postalCodesJson["postalCodes"].is_array()) {
+                LOG("Invalid JSON structure", LogLevel::ERROR);
+                return 1;
+            }
+
+            vector<string> postalCodes;
+            for (const auto& code : postalCodesJson["postalCodes"]) {
+                postalCodes.push_back(to_string(code.get<int>()));
+            }
+            LOG("Successfully parsed " + to_string(postalCodes.size()) + " postal codes", LogLevel::INFO);
+
+            if (verifyMode) {
+                LOG("Starting verification mode", LogLevel::INFO);
+                try {
+                    ifstream outputFile(outputFilePath);
+                    if (!outputFile.is_open()) {
+                        LOG("Failed to open output file for verification: " + outputFilePath, LogLevel::ERROR);
+                        return 1;
+                    }
+                    json outputJson = json::parse(outputFile);
+                    vector<string> regexes = outputJson["regexes"];
+                    bool isValid = validateRegexMatches(regexes, postalCodesJson["postalCodes"]);
+                    LOG("Verification completed. Result: " + string(isValid ? "valid" : "invalid"), LogLevel::INFO);
+                    return isValid ? 0 : 1;
+                } catch (const exception& e) {
+                    LOG("Verification error: " + string(e.what()), LogLevel::ERROR);
+                    return 1;
+                }
+            }
+
+            // Build regex tree and patterns
+            LOG("Building regex tree", LogLevel::INFO);
+            Node* root = buildTreeFromPostalCodes(postalCodes);
+            vector<string> regexes = buildRegexFromTree(root, regexLengthLimit);
+            
+            // Write output
+            LOG("Writing regex patterns to output file", LogLevel::INFO);
+            ofstream outputFile(outputFilePath);
+            if(outputFile.is_open()) {
+                json result = createJSONRegex(regexes);
+                outputFile << result.dump(4);
+                outputFile.close();
+                LOG("Successfully wrote regex patterns to: " + outputFilePath, LogLevel::INFO);
+            } else {
+                LOG("Failed to open output file for writing: " + outputFilePath, LogLevel::ERROR);
+                return 1;
+            }
+
+        } catch (const exception& e) {
+            LOG("Fatal error: " + string(e.what()), LogLevel::ERROR);
+            return 1;
+        }
+
+    } catch(const exception& e) {
+        LOG("Error parsing arguments: " + string(e.what()), LogLevel::ERROR);
         return 1;
     }
+
+    LOG("PinRex completed successfully", LogLevel::INFO);
     return 0;
 }
