@@ -1,65 +1,127 @@
 # PinRex - Pincode Regex Generator
 
-This command line tool takes in a list of pincodes and generates a regular expression (regex) based on the provided list. The generated regex can be used to match and validate pincodes in various applications.
+This command line tool takes in a list of postal codes in JSON format and generates optimized regular expressions that match the provided codes. The generated regex patterns can be used to validate postal codes in various applications.
+
+## Features
+
+- Generates optimized regex patterns for postal code validation
+- Handles large sets of postal codes efficiently
+- Supports verification of generated patterns
+- Configurable regex length limits
+- JSON input/output format
+
+## Prerequisites
+
+- C++ compiler with C++11 support
+- Make build system
+- nlohmann/json library for C++
 
 ## Installation
 
-1. Clone the repository:
-    
+1.  Clone the repository:
+
         git clone https://github.com/sishir2001/PinRex
 
-2. Navigate to the project directory:
+2.  Navigate to the project directory:
 
         cd PinRex
 
-3. Create and activate a virtual environment (optional but recommended):
+3.  Build the project:
 
-        python -m venv PinRex
-        source PinRex/bin/activate
-
-4. Install the dependencies:
-
-        pip install -r requirements.txt
+        mkdir build
+        cd build
+        cmake --build ..
 
 ## Usage
 
-To generate a regex based on a list of pincodes, run the following command:
+To generate regex patterns based on a list of postal codes, run the following command:
 
-    python ./src/main.py -i <input_file_path>.csv -o <output_file_path>.csv
+    ./pinrex -i <input_file_path>.json -o <output_file_path>.json [-l <regex_length_limit>] [--verify]
 
-- `-i` or `--input` options for specifying the path of input csv file
-- `-o` or `--output` options for specifying the path of output csv file
+Options:
+
+- `-i`: Input JSON file path containing postal codes
+- `-o`: Output JSON file path for generated regex patterns
+- `-l`: Optional regex length limit (default: 1000)
+- `--verify`: Optional flag to verify generated regex patterns
+- `--version`: Display version information
 
 ## Input File Format
 
-The input file should be a CSV file with a single column containing the list of pincodes. Each pincode should be on a separate line.
+The input file should be a JSON file containing an array of postal codes under the "postalCodes" key.
 
-Example input file:
+Example input file (input.json):
 
-    Pin,State
-    123456,Telangana
-    123478,Telangana
-    345678,Karnataka
-    349823,Karnataka
+    {
+        "postalCodes": [
+            110001,
+            110002,
+            110003,
+            110004,
+            110005
+        ]
+    }
 
+## Output Format
 
-## Output
+The output will be a JSON file containing the generated regex patterns that match the input postal codes.
 
-The generated regex will match the provided pincodes. You can use this regex in your applications to validate and match pincodes.
+Example output (output.json):
 
-Example output:
+    {
+        "regexes": [
+            "^11000[1-5]$"
+        ]
+    }
 
-    State,Regex
-    Telangana,"^1234(56|78)"
-    Karnataka,"^34(5678|9823)"
+The generated regex patterns:
 
+- Are anchored with `^` and `$` to ensure exact matches
+- Use character classes `[]` for ranges of digits
+- Use grouping `()` to capture common prefixes
+- Use alternation `|` to match different possibilities
 
-# Contributing
+## Verification
 
-Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+You can verify the generated regex patterns using the `--verify` flag:
 
-# License
+    ./pinrex -i input.json -o output.json --verify
 
+This will check if:
+
+1. The regex patterns only match valid postal codes
+2. All valid postal codes are matched by the patterns
+3. No invalid postal codes are matched
+
+## Error Handling
+
+The program includes error checking for:
+
+- Invalid input file format
+- Missing input/output files
+- Invalid JSON structure
+- Invalid command-line arguments
+- Regex generation failures
+
+## Performance
+
+The tool is optimized to:
+
+- Handle large sets of postal codes
+- Generate compact regex patterns
+- Minimize regex backtracking
+- Maintain reasonable memory usage
+
+## Contributing
+
+Contributions are welcome! If you find any issues or have suggestions for improvements, please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+Please ensure your code follows the existing style and includes appropriate tests.
+
+## License
 This project is licensed under the [MIT License](LICENSE).
-
-

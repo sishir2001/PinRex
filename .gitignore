@@ -5,3 +5,4 @@ pinrex
 *.o
 *.o
 *build/
+*.vscode
