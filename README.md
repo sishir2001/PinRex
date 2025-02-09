@@ -18,6 +18,17 @@ This command line tool takes in a list of postal codes in JSON format and genera
 
 ## Installation
 
+### Using Homebrew (macOS and Linux)
+
+You can install PinRex using Homebrew:
+
+        brew tap sishir2001/pinrex
+        brew install pinrex
+
+### Building from Source
+
+If you prefer to build from source:
+
 1.  Clone the repository:
 
         git clone https://github.com/sishir2001/PinRex
