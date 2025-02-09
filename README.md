@@ -30,7 +30,7 @@ This command line tool takes in a list of postal codes in JSON format and genera
 
         mkdir build
         cd build
-        cmake --build ..
+        cmake --build .
 
 ## Usage
 
@@ -45,6 +45,7 @@ Options:
 - `-l`: Optional regex length limit (default: 1000)
 - `--verify`: Optional flag to verify generated regex patterns
 - `--version`: Display version information
+- `--help`: Display help message
 
 ## Input File Format
 
@@ -124,4 +125,5 @@ Contributions are welcome! If you find any issues or have suggestions for improv
 Please ensure your code follows the existing style and includes appropriate tests.
 
 ## License
+
 This project is licensed under the [MIT License](LICENSE).

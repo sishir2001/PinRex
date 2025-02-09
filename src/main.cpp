@@ -16,7 +16,7 @@
 using namespace std;
 using json = nlohmann::json;
 
-const string APP_VERSION = "1.1.1";
+const string APP_VERSION = "1.2.0";
 const string JSON_EXTENSION = ".json";
 const size_t JSON_EXTENSION_LENGTH = JSON_EXTENSION.length();
 const string ANY_DIGIT_REGEX = "[0-9]";
@@ -361,6 +361,16 @@ int main(int argc, char* argv[]) {
         string arg = argv[i];
         if (arg == "--version") {
             cout << "PinRex Version " << APP_VERSION << endl;
+            return 0;
+        } else if (arg == "--help" || arg == "-h") {
+            cout << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
+            cout << "Options:" << "\n";
+            cout << "  -i, --input <input-file-path>    Path to the input JSON file containing postal codes" << "\n";
+            cout << "  -o, --output <output-file-path>  Path to the output JSON file for generated regex patterns" << "\n";
+            cout << "  -l, --limit <regex-limit>        Maximum length of generated regex patterns (default: 1000)" << "\n";
+            cout << "  --verify                        Verify generated regex patterns against input postal codes" << "\n";
+            cout << "  --version                       Display the version of PinRex" << "\n";
+            cout << "  --help                          Display this help message" << "\n";
             return 0;
         } else if (arg == "-i" && i + 1 < argc) {
             inputFilePath = argv[++i];
