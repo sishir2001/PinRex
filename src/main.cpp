@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <numeric> // * for accumulate function
 #include <utility>
+#include <set>
+#include <regex>
 
 using namespace std;
 using json = nlohmann::json;
@@ -156,26 +158,107 @@ string truncateRegex(vector<string>& regexes,int height){
     }
 }
 
+vector<string> mergeSortedVectors(const vector<string>& vec1, const vector<string>& vec2){
+    vector<string> result;
+    size_t vec1Size = vec1.size();
+    size_t vec2Size = vec2.size();
+    size_t i = 0, j = 0;
+    while(i < vec1Size && j < vec2Size){
+        if(vec1[i].size() < vec2[j].size()){
+            result.push_back(vec1[i++]);
+        }
+        else{
+            result.push_back(vec2[j++]);
+        }
+    }
+    while(i < vec1Size){
+        result.push_back(vec1[i++]);
+    }
+
+    while(j < vec2Size){
+        result.push_back(vec2[j++]);
+    }
+    return result;
+}
+
+vector<string> truncateAndSort(vector<vector<string>>& groups,int height){
+    vector<string> result;
+    for(auto& group : groups){
+        result.push_back(truncateRegex(group,height));
+    }
+    sort(result.begin(),result.end(),[](const string& a, const string& b){return a.size() < b.size();});
+    return result;
+}
+
+vector<string> groupAndTruncateRegexes(vector<string>& regexes,int height,int limit){
+    vector<vector<string>> groups;
+    regexes.erase(remove_if(regexes.begin(), regexes.end(),[](const string& s) { return s.empty(); }),regexes.end());
+    if(regexes.size() == 0 || regexes.size() == 1){
+        return regexes;
+    }
+    // group the regexes by the regex lengths
+    int size = 0;
+    vector<string> group;
+    for(int i = 0;i < regexes.size();i++){
+        size += regexes[i].size();
+        int partitions = group.size();
+        if(height + 3 + size + partitions < limit){
+            group.push_back(regexes[i]);
+        }
+        else{
+            // need to break the group and start a new one
+            groups.push_back(group);
+            group.clear();
+            size = regexes[i].size();
+            group.push_back(regexes[i]);
+        }
+    }
+    if(group.size() > 0){
+        groups.push_back(group);
+        group.clear();
+    }
+
+    // truncate the group of regexes and sort them by the regex lengths
+    return truncateAndSort(groups,height);
+}
+
 // parse the tree to build a regex
-string buildRegexFromTree(Node* root){
-    vector<string> subRegexes;
+// should return an array of regexes
+vector<string> buildRegexFromTree(Node* root,int limit){
+    vector<string> result;
     if(root->childCount == 0){
-        return "";
+        return {};
     }
     for(int i = 0;i < 10;i++){
         if(root->children[i]){ // check if unique_ptr is not null
+            vector<string> aux;
             Node* childNode = root->children[i].get();
-            string subRegex = to_string(i) + buildRegexFromTree(childNode);
-            if(root->height == 0){
-                subRegex = "^" + subRegex;
+            vector<string> subRegexes = buildRegexFromTree(childNode,limit);
+            // before prefixing the regexes with the digit, we need to group
+            if(subRegexes.size() == 0){
+                // leaf nodes handling
+                aux.push_back(to_string(i));
             }
-            subRegexes.push_back(subRegex);
+            else{
+                for(const auto& subRegex : subRegexes){
+                    string auxRegex = to_string(i) + subRegex;
+                    if(root->height == 0){
+                        auxRegex = "^" + auxRegex;
+                    }
+                    aux.push_back(auxRegex);
+                }
+            }
+
+            // merge the aux array with the result array in a sorted manner
+            result = mergeSortedVectors(result,aux);
         }
     }
-    // truncating the regexes 
-    return truncateRegex(subRegexes,root->height);
+    // need to trucate the regex
+    return groupAndTruncateRegexes(result,root->height,limit);
 }
 
+
+// check if the file is a json file by checking the extension
 bool isJsonFile(const string& filePath){
     const size_t filePathLength = filePath.length();
     if(filePathLength >= JSON_EXTENSION_LENGTH){
@@ -186,15 +269,91 @@ bool isJsonFile(const string& filePath){
     }
 }
 
-json createJSONRegex(const string& regex){
+json createJSONRegex(const vector<string>& regexes){
     json result;
-    result["regex"] = regex;
+    result["regexes"] = regexes;
     return result;
 }
 
+bool validateRegexMatches(const vector<string>& regexes, const vector<int>& postalCodes) {
+    try {
+        // Create set of valid postal codes
+        set<int> validPostalCodes(postalCodes.begin(), postalCodes.end());
+
+        // Convert regex strings to regex objects
+        vector<regex> regexObjects;
+        for (const auto& pattern : regexes) {
+            try {
+                regexObjects.push_back(regex(pattern));
+            } catch (const regex_error& e) {
+                cerr << "Invalid regex pattern: " << pattern << "\nError: " << e.what() << endl;
+                return false;
+            }
+        }
+
+        // Track invalid matches
+        set<int> invalidMatches;
+        size_t totalMatches = 0;
+
+        // Test each number from 100000 to 999999
+        for (int num = 100000; num <= 999999; num++) {
+            const string numStr = to_string(num);
+            bool matchesRegex = false;
+
+            // Check if number matches any regex
+            for (const auto& regex : regexObjects) {
+                try {
+                    if (regex_match(numStr, regex)) {
+                        matchesRegex = true;
+                        break;
+                    }
+                } catch (const regex_error& e) {
+                    continue; // Skip problematic regex
+                }
+            }
+
+            if (matchesRegex) {
+                totalMatches++;
+                if (validPostalCodes.find(num) == validPostalCodes.end()) {
+                    invalidMatches.insert(num);
+                }
+            }
+        }
+
+        // Output results
+        if (!invalidMatches.empty()) {
+            cout << "Found numbers that match regex but aren't in postal codes:\n";
+            int count = 0;
+            for (int num : invalidMatches) {
+                if (count++ < 10) {
+                    cout << num << " ";
+                }
+            }
+            cout << "\nTotal invalid matches: " << invalidMatches.size() << endl;
+            cout << "Total matches: " << totalMatches << endl;
+            cout << "Valid postal codes: " << validPostalCodes.size() << endl;
+            return false;
+        } else {
+            cout << "All regex matches are valid postal codes!" << endl;
+            cout << "Total matches: " << totalMatches << endl;
+            cout << "Valid postal codes: " << validPostalCodes.size() << endl;
+            return totalMatches == validPostalCodes.size(); // Ensure we match all postal codes
+        }
+
+    } catch (const exception& e) {
+        cerr << "Error during validation: " << e.what() << endl;
+        return false;
+    }
+}
+
+/*
+argc -> argument count
+argv -> argument vector
+*/
 int main(int argc, char* argv[]) {
     string inputFilePath, outputFilePath;
-    int regexLengthLimit = 0;
+    int regexLengthLimit = 1000;
+    bool verifyMode = false;
 
     // Argument parsing
     try{
@@ -209,11 +368,13 @@ int main(int argc, char* argv[]) {
             outputFilePath = argv[++i];
         } else if (arg == "-l" && i + 1 < argc) {
             regexLengthLimit = stoi(argv[++i]);
+        } else if (arg == "--verify") {
+            verifyMode = true;
         } else {
             cerr << "Usage: " << argv[0] << " -i <input-file-path> -o <output-file-path> -l <regex-limit>" << "\n";
-            return 1;
+                return 1;
+            }
         }
-    }
     }
     catch(const exception& e){
         cerr << "Error occurred :.\n" << e.what() << "\n";
@@ -246,12 +407,33 @@ int main(int argc, char* argv[]) {
         postalCodes.push_back(to_string(code.get<int>()));
     }
 
-    Node* root = buildTreeFromPostalCodes(postalCodes);
-    string regex = buildRegexFromTree(root);
+    if (verifyMode) {
+        cout << "Verifying regexes..." << endl;
+        try {
+            // read the output json file
+            ifstream outputFile(outputFilePath);
+            if (!outputFile.is_open()) {
+                cerr << "Error: Failed to open output file." << "\n";
+                return 1;
+            }
+            json outputJson = json::parse(outputFile);
+            vector<string> regexes = outputJson["regexes"];
+            bool isValid = validateRegexMatches(regexes, postalCodesJson["postalCodes"]);
+            cout << "Regexes are valid: " << isValid << endl;
+            return isValid ? 0 : 1;
+        }
+        catch (const exception& e) {
+            cerr << "Error occurred :.\n" << e.what() << "\n";
+            return 1;
+        }
+    }
 
-    // write the regex to the output file
+    cout << "Building regex from list with limit " << regexLengthLimit << "..." << endl;
+    Node* root = buildTreeFromPostalCodes(postalCodes);
+    vector<string> regexes = buildRegexFromTree(root,regexLengthLimit);
+    cout << "Regexes built successfully. Writing to output file..." << endl;
     ofstream outputFile(outputFilePath);
-    json result = createJSONRegex(regex);
+    json result = createJSONRegex(regexes);
     if(outputFile.is_open()){
         outputFile << result.dump(4);
         outputFile.close();
