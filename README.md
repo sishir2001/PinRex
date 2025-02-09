@@ -22,7 +22,7 @@ This command line tool takes in a list of postal codes in JSON format and genera
 
 You can install PinRex using Homebrew:
 
-        brew tap sishir2001/pinrex
+        brew tap sishir2001/brewery
         brew install pinrex
 
 ### Building from Source
