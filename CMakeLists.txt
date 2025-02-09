@@ -15,7 +15,10 @@
    )
    FetchContent_MakeAvailable(json)
 
-   add_executable(pinrex src/main.cpp)
+   add_executable(pinrex 
+      src/main.cpp
+      src/utils.cpp
+   )
 
    # Link the json library to your executable
    target_link_libraries(pinrex PRIVATE nlohmann_json::nlohmann_json)
